@@ -11,7 +11,7 @@ from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from catboost import CatBoostClassifier
 
-# returns tuple of two np.ndarray-s or three
+
 def run_algo(
         X_train: np.ndarray, 
         X_val: np.ndarray, 

@@ -1,7 +1,8 @@
+import os 
+import random
+
 import numpy as np
 import pandas as pd
-import random
-import os 
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
@@ -96,7 +97,7 @@ with (open('preds_val.txt', 'a') as f1,
       open('preds_test.txt', 'a') as f2, 
       open('feature_imps.txt', 'a') as f3):
 
-    for _ in tqdm(range(1000)):
+    for _ in tqdm(range(1000), desc='Simulations'):
         fis = {}
         preds_val = {}
         preds_test = {}
@@ -137,35 +138,25 @@ with (open('preds_val.txt', 'a') as f1,
             combo_preds_val[glp_spec] = glp['scores']
             combo_preds_test[glp_spec] = glp_preds
 
-        try:
-            blp = ComboClass.blp_fit()
-            blp_preds = ComboClass.blp_func(preds_test.values, blp['params'])
-            combo_preds_val['blp'] = blp['scores']
-            combo_preds_test['blp'] = blp_preds
-        except ValueError:
-            print('same shit error in BLP')
-            combo_preds_val['blp'] = np.full(len(combo_preds_val['simple']), np.nan)
-            combo_preds_test['blp'] = np.full(len(combo_preds_test['simple']), np.nan)
-
-        try:
-            bmc2 = ComboClass.bmc_fit(M=2)
-            bmc2_preds = ComboClass.bmc_func(preds_test.values, bmc2['params'], 2)
-            combo_preds_val['bmc2'] = bmc2['scores']
-            combo_preds_test['bmc2'] = bmc2_preds
-        except ValueError:
-            print('same shit error in BMC(2)')
-            combo_preds_val['bmc2'] = np.full(len(combo_preds_val['simple']), np.nan)
-            combo_preds_test['bmc2'] = np.full(len(combo_preds_test['simple']), np.nan)
-
-        try:
-            bmc3 = ComboClass.bmc_fit(M=3)
-            bmc3_preds = ComboClass.bmc_func(preds_test.values, bmc3['params'], 3)
-            combo_preds_val['bmc3'] = bmc3['scores']
-            combo_preds_test['bmc3'] = bmc3_preds
-        except ValueError:
-            print('same shit error in BMC(3)')
-            combo_preds_val['bmc3'] = np.full(len(combo_preds_val['simple']), np.nan)
-            combo_preds_test['bmc3'] = np.full(len(combo_preds_test['simple']), np.nan)
+        # some weird error in calculations, which I have to handle somehow
+        for bmethod_name in ['blp', 'bmc2', 'bmc3']:
+            try:
+                bfit, bfunc = map(
+                    lambda x: getattr(ComboClass, f'{bmethod_name}_{x}'), ['fit', 'func']
+                )
+                bfit = bfit() if bmethod_name == 'blp' else bfit(M=int(bmethod_name[-1]))
+                bmethod_preds = (
+                    bfunc(preds_test.values, bfit['params']) 
+                    if bmethod_name == 'blp' 
+                    else bfunc(preds_test.values, bfit['params'], M=int(bmethod_name[-1]))
+                )
+                combo_preds_val[bmethod_name] = bfit['scores']
+                combo_preds_test[bmethod_name] = bmethod_preds
+            except ValueError:
+                print(f'same shit error in {bmethod_name}')
+                fill_vals = np.full(len(combo_preds_val['simple']), np.nan)
+                combo_preds_val[bmethod_name] = fill_vals
+                combo_preds_test[bmethod_name] = fill_vals
 
         combo_preds_val = pd.DataFrame(combo_preds_val)
         combo_preds_test = pd.DataFrame(combo_preds_test)
